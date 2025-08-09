@@ -1,7 +1,7 @@
 
 from PySide6.QtWidgets import (QMainWindow, QApplication,QTableView, QDialog, QVBoxLayout,
-                                QHBoxLayout, QPushButton, QLabel, QLineEdit, QDoubleSpinBox,
-                                QComboBox, QDateEdit, QFileDialog)
+                                QFormLayout, QLabel, QLineEdit, QDoubleSpinBox,
+                                QComboBox, QDateEdit, QFileDialog, QDialogButtonBox, QMessageBox)
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QAction
 from PySide6.QtCore import Qt, QDate
 from logic import ExpenseLogic
@@ -25,41 +25,20 @@ class AddExpenseDialog(QDialog):
         self.category_combo = QComboBox(self)
         self.category_combo.addItems(categories)
 
-        btn_ok = QPushButton('确定', self)
-        btn_cancel = QPushButton('取消', self)
-        btn_ok.clicked.connect(self.accept)
-        btn_cancel.clicked.connect(self.reject)
+        form_layout = QFormLayout()
+        form_layout.addRow('日期：', self.date_edit)
+        form_layout.addRow('描述：', self.desc_edit)
+        form_layout.addRow('金额：', self.amount_spin)
+        form_layout.addRow('类别：', self.category_combo)
 
-        form_layout = QVBoxLayout()
-        # 日期
-        row = QHBoxLayout()
-        row.addWidget(QLabel('日期：', self))
-        row.addWidget(self.date_edit)
-        form_layout.addLayout(row)
-        # 描述
-        row = QHBoxLayout()
-        row.addWidget(QLabel('描述：', self))
-        row.addWidget(self.desc_edit)
-        form_layout.addLayout(row)
-        # 金额
-        row = QHBoxLayout()
-        row.addWidget(QLabel('金额：', self))
-        row.addWidget(self.amount_spin)
-        form_layout.addLayout(row)
-        # 类别
-        row = QHBoxLayout()
-        row.addWidget(QLabel('类别：', self))
-        row.addWidget(self.category_combo)
-        form_layout.addLayout(row)
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
 
-        # 按钮
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        btn_layout.addWidget(btn_ok)
-        btn_layout.addWidget(btn_cancel)
-        form_layout.addLayout(btn_layout)
-
-        self.setLayout(form_layout)
+        main_layout = QVBoxLayout()
+        main_layout.addLayout(form_layout)
+        main_layout.addWidget(button_box)
+        self.setLayout(main_layout)
 
     def get_data(self):
         return {
@@ -74,14 +53,15 @@ class ExpenseTrackerApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Expense Tracker")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(500, 100, 800, 600)
 
         # 1. 创建逻辑处理器实例
-        self.logic = ExpenseLogic() 
+        self.logic = ExpenseLogic(self) 
         
         self.logic.add_record_to_model.connect(self.model_add_record)  
         self.logic.remove_records_from_model.connect(self.model_remove_records)
         self.logic.load_records_to_model.connect(self.model_load_records)
+        self.logic.error_occurred.connect(self.show_error)
 
         self.categories = ["食品", "交通", "娱乐", "医疗", "其他"]  # 示例类别
         self.add_action()
@@ -180,6 +160,9 @@ class ExpenseTrackerApp(QMainWindow):
     def model_remove_records(self, indexes):
         for index in sorted(indexes, reverse=True):
             self.model.removeRow(index)
+    
+    def show_error(self, error_message):
+        QMessageBox.critical(self, '错误', error_message)
 
 if __name__ == "__main__":
     app = QApplication([])

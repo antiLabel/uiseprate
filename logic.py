@@ -7,9 +7,10 @@ class ExpenseLogic(QObject):
     load_records_to_model = Signal(list)
     add_record_to_model = Signal(dict)
     remove_records_from_model = Signal(list)
+    error_occurred = Signal(str)
     
-    def __init__(self, filepath='expenses.json'):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
         
         # 获取exe或py文件所在目录
         if hasattr(sys, 'frozen'):
@@ -19,16 +20,15 @@ class ExpenseLogic(QObject):
         
         config_path = os.path.join(app_dir, 'config.ini')
         self.settings = QSettings(config_path, QSettings.IniFormat)
-        
         self.records = []
-        self.load_records(filepath)
 
-    def load_records(self, path):
+    def load_records(self, filepath):
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(filepath, 'r', encoding='utf-8') as f:
                 self.records = json.load(f)
+            self.settings.setValue('last_save_dir', os.path.dirname(filepath))
         except (json.JSONDecodeError, IOError) as e:
-            print(f"Error loading data: {e}")
+            self.error_occurred.emit(f"加载数据失败: {e}")
             self.records = []
         self.load_records_to_model.emit(self.records)   
 
@@ -39,7 +39,7 @@ class ExpenseLogic(QObject):
             # 保存目录到配置文件
             self.settings.setValue('last_save_dir', os.path.dirname(filepath))
         except IOError as e:
-            print(f"Error saving data: {e}")
+            self.error_occurred.emit(f"保存数据失败: {e}")
 
     def add_record(self, record):
         self.records.append(record)
